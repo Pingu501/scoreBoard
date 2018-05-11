@@ -1,101 +1,100 @@
-// team A Pins
-int teamALed0 = 3;
-int teamALed1 = 2;
+byte scoreToByte(int score) {
+  // yyy0xxx0
+  switch(score) {
+        case 0:
+          // 00
+          // 00000000
+          return 0;
+        case 1:
+          // 15
+          // 00101010
+          return 42;
+        case 2:
+          // 30
+          // 01100000
+          return 96;
+        case 3:
+          // 45
+          // 10001010
+          return 138;
+        default:
+          // 11111111
+          return 255;
+      }
+}
 
-int teamAButton = 12;
-int teamAButtonIsPressed = false;
+void updateShiftRegister(int dataPin, int clockPin, int latchPin, byte data) {
+   digitalWrite(latchPin, LOW);
+   shiftOut(dataPin, clockPin, LSBFIRST, data);
+   digitalWrite(latchPin, HIGH);
+}
 
-int teamAScore = 0;
-int teamAGames = 0;
+bool wasPressed = false;
 
-// team B Pins
-int teamBLed0 = 5;
-int teamBLed1 = 4;
+class Team {
+  public:
+    int dataPin, clockPin, latchPin, buttonPin, score, games;
+    
+    Team() {
+      score = 0;
+      games = 0;
+    }
+    
+    void setPins(int dataPin, int clockPin, int latchPin, int buttonPin) {
+        this->dataPin = dataPin;
+        this->clockPin = clockPin;
+        this->latchPin = latchPin;
+        this->buttonPin = buttonPin;
 
-int teamBButton = 11;
-int teamBButtonIsPressed = false;
+        pinMode(dataPin, OUTPUT);
+        pinMode(clockPin, OUTPUT);
+        pinMode(latchPin, OUTPUT);
+        pinMode(buttonPin, INPUT);
+    }
 
-int teamBScore = 0;
-int teamBGames = 0;
- 
+    void checkForUpdate(void) {
+      bool buttonWasPressed = buttonIsPressed();
+      if (buttonWasPressed) {
+        this->score += 1;
+
+        if (this->score == 4) {
+          this->score = 0;
+          this->games += 1;
+        }
+
+        updateLeds();
+      }
+    }
+
+    void updateLeds() {
+      byte scoreAsByte = scoreToByte(score);
+      updateShiftRegister(dataPin, clockPin, latchPin, scoreAsByte);
+    }
+
+    bool buttonIsPressed(void) {
+      bool buttonWasPressed = digitalRead(buttonPin);
+      if (buttonWasPressed) {
+        wasPressed = true;
+      }
+      return buttonWasPressed;
+    }
+};
+
+Team team1;
+Team team2;
 
 void setup() {
-  pinMode(teamALed0, OUTPUT);
-  pinMode(teamALed1, OUTPUT);
-  pinMode(teamAButton, INPUT);
-
-  pinMode(teamBLed0, OUTPUT);
-  pinMode(teamBLed1, OUTPUT);
-  pinMode(teamBButton, INPUT);
+  team1.setPins(5, 7, 6, 4);
+  // team2.setPins(7, 8, 9, 6);
 }
 
 void loop() {
-  if (teamAButtonIsPressed || teamBButtonIsPressed) {
-    delay(300);
-    teamAButtonIsPressed = false;
-    teamBButtonIsPressed = false;
+  if (wasPressed) {
+    delay(400);
+    wasPressed = false;
   }
   
-  teamAButtonIsPressed = digitalRead(teamAButton);
-  teamBButtonIsPressed = digitalRead(teamBButton);
-
-  if (teamAButtonIsPressed) {
-    raiseScore('a');
-  }
-
-  if (teamBButtonIsPressed) {
-    raiseScore('b');
-  }
-}
-
-void raiseScore(char team) {
-  int *led0, *led1, *score, *games;
-
-  if (team == 'a') {
-    led0 = &teamALed0;
-    led1 = &teamALed1;
-    score = &teamAScore;
-    games = &teamAGames;
-  } else {
-    led0 = &teamBLed0;
-    led1 = &teamBLed1;
-    score = &teamBScore;
-    games = &teamBGames;
-  }
-
-  *score += 1;
-
-  if (*score == 4) {
-    *games += 1;
-    *score = 0;
-  }
-
-  updateLeds(*score, led0, led1);
-}
-
-void updateLeds(int score, int* led0, int* led1) {
-  int state0, state1;
-  
-  switch(score) {
-    case 0:
-      state0 = LOW;
-      state1 = LOW;
-      break;
-    case 1:
-      state0 = HIGH;
-      state1 = LOW;
-      break;
-    case 2:
-      state0 = LOW;
-      state1 = HIGH;
-      break;
-    case 3:
-      state0 = HIGH;
-      state1 = HIGH;
-      break;
-  }
-
-  digitalWrite(*led0, state0);
-  digitalWrite(*led1, state1);
+  team1.checkForUpdate();
+  // team2.checkForUpdate();
 }
 
